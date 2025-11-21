@@ -7,7 +7,7 @@
   "annualSalary": 60000,
   "paychecksProcessed": 20,
   "age": 25,
-  "retirementAge": 55,
+  "retirementAge": 65,
   "annualReturn": 0.06,
   "currentBalance": 1000,
   "salaryIncrease": 2,

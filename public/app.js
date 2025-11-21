@@ -387,7 +387,7 @@ function displayRetirementImpact(data, projectionAmount, projectionType) {
     const useReturn = expectedReturnInput ? (parseFloat(expectedReturnInput.value) || (currentContributionData.annualReturn * 100)) / 100 : (currentContributionData.annualReturn || 0.07);
     const useRetirementAge = retirementAgeInput ? parseInt(retirementAgeInput.value) || currentContributionData.retirementAge : currentContributionData.retirementAge;
     const useAge = ageInput ? parseInt(ageInput.value) || currentContributionData.age : currentContributionData.age;
-    const years = Math.max(1, useRetirementAge - useAge);
+    const years = Math.max(1, useRetirementAge - useAge + 1); // +1 to include the retirement year
 
     const currentProj = computeYearlyProjection(
         initialBalance,
@@ -477,18 +477,26 @@ function renderProjectionChart(svgId, currentRows, futureRows) {
     // add small headroom so the largest bar isn't flush with the top
     const yMax = maxTotal * 1.08;
 
-    const groupWidth = chartW / years;
-    const barSpacing = Math.min(12, groupWidth * 0.15);
-    const singleBarWidth = Math.max(6, (groupWidth - barSpacing) / 2 - 6);
+    // Calculate spacing: allocate gap space between year groups
+    const betweenGroupSpacing = 24; // Space between year groups
+    const totalSpacing = betweenGroupSpacing * (years - 1);
+    const availableForBars = chartW - totalSpacing;
+    const barGroupWidth = availableForBars / years; // Width allocated per year group for the bars
+    const withinGroupSpacing = 1; // Small space between current and projected bars
+    const singleBarWidth = Math.max(6, (barGroupWidth - withinGroupSpacing) / 2);
 
     // draw baseline and year labels
     for (let i = 0; i < years; i++) {
-        const gX = padding + i * groupWidth;
-
-        // For each year, center the group, then offset current left and projected right
-        const groupCenter = gX + groupWidth / 2;
-        const cx = groupCenter - singleBarWidth - 2;
-        const fx = groupCenter + 2;
+        // Calculate position accounting for gaps between groups
+        let xOffset = 0;
+        for (let j = 0; j < i; j++) {
+            xOffset += barGroupWidth + betweenGroupSpacing;
+        }
+        const gX = padding + xOffset;
+        const groupCenter = gX + barGroupWidth / 2;
+        const pairWidth = singleBarWidth * 2 + withinGroupSpacing;
+        const cx = groupCenter - pairWidth / 2; // current bar on the left
+        const fx = cx + singleBarWidth + withinGroupSpacing; // projected bar on the right
 
         const cur = currentRows[i];
         const fut = futureRows[i];
@@ -533,7 +541,7 @@ function renderProjectionChart(svgId, currentRows, futureRows) {
 
         // year label -> use actual ages instead of +1, +2...
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        txt.setAttribute('x', gX + groupWidth / 2);
+        txt.setAttribute('x', gX + barGroupWidth / 2);
         txt.setAttribute('y', padding + chartH + 16);
         txt.setAttribute('text-anchor', 'middle');
         txt.setAttribute('fill', '#666');
