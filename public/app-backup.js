@@ -19,9 +19,7 @@ const saveMessage = document.getElementById('saveMessage');
 const ytdContributions = document.getElementById('ytdContributions');
 const annualSalary = document.getElementById('annualSalary');
 const currentContribution = document.getElementById('currentContribution');
-const currentContributionFixed = document.getElementById('currentContributionFixed');
-const currentAge = document.getElementById('currentAge');
-const retirementAgeStatus = document.getElementById('retirementAgeStatus');
+const ageInfo = document.getElementById('ageInfo');
 const calculateButton = document.getElementById('calculateButton');
 const projectionContribution = document.getElementById('projectionContribution');
 const projectionPrefix = document.getElementById('projectionPrefix');
@@ -71,8 +69,7 @@ function updateUI() {
     // Update status section
     ytdContributions.textContent = formatCurrency(currentContributionData.ytdContributions);
     annualSalary.textContent = formatCurrency(currentContributionData.annualSalary);
-    if (currentAge) currentAge.textContent = currentContributionData.age || '';
-    if (retirementAgeStatus) retirementAgeStatus.textContent = currentContributionData.retirementAge || '';
+    ageInfo.textContent = `${currentContributionData.age} / ${currentContributionData.retirementAge}`;
 
     // Update contribution type buttons
     if (currentContributionData.contributionType === 'percentage') {
@@ -110,24 +107,11 @@ function updateUI() {
     updatePerPaycheckAmount();
 
     // Update current contribution display
-    // Always show both: percentage and fixed (per-paycheck)
-    const salaryVal = salaryInput ? parseFloat(salaryInput.value) : currentContributionData.annualSalary || 0;
-    const perPaycheckSalary = (salaryVal && !isNaN(salaryVal)) ? (salaryVal / 26) : 0;
-
-    let percentDisplay = 0;
-    let fixedPerPaycheckDisplay = 0;
-
     if (currentContributionData.contributionType === 'percentage') {
-        percentDisplay = parseFloat(currentContributionData.contributionAmount) || 0;
-        fixedPerPaycheckDisplay = perPaycheckSalary * percentDisplay / 100;
+        currentContribution.textContent = `${currentContributionData.contributionAmount}%`;
     } else {
-        fixedPerPaycheckDisplay = parseFloat(currentContributionData.contributionAmount) || 0;
-        percentDisplay = perPaycheckSalary > 0 ? (fixedPerPaycheckDisplay / perPaycheckSalary * 100) : 0;
+        currentContribution.textContent = formatCurrency(currentContributionData.contributionAmount);
     }
-
-    // Update UI elements
-    currentContribution.textContent = `${Math.round(percentDisplay * 100) / 100}%`;
-    if (currentContributionFixed) currentContributionFixed.textContent = formatCurrency(fixedPerPaycheckDisplay);
 
     // Update projection field with smart conversion based on projection type
     let projectionValue = currentContributionData.contributionAmount;
@@ -173,10 +157,7 @@ function attachEventListeners() {
 // Select contribution type
 function selectContributionType(type) {
     const currentType = currentContributionData.contributionType;
-    // Read from actual form fields instead of stored data
-    const currentAmount = currentType === 'percentage' 
-        ? parseFloat(contributionSlider.value) || 0
-        : parseFloat(contributionTextInput.value) || 0;
+    const currentAmount = parseFloat(currentContributionData.contributionAmount) || 0;
     const salary = parseFloat(salaryInput ? salaryInput.value : currentContributionData.annualSalary) || currentContributionData.annualSalary || 0;
     const perPaycheckSalary = salary / 26;
     

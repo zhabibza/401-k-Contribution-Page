@@ -123,6 +123,12 @@ body {
     margin-bottom: 25px;
 }
 
+.help-text {
+    margin-top: 8px;
+    font-size: 0.95rem;
+    color: var(--text-light);
+}
+
 .form-group label {
     display: block;
     margin-bottom: 12px;

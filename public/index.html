@@ -31,8 +31,16 @@
                         <div class="status-value" id="currentContribution">0%</div>
                     </div>
                     <div class="status-item">
-                        <div class="status-label">Age / Retirement Age</div>
-                        <div class="status-value" id="ageInfo">0 / 65</div>
+                        <div class="status-label">Per-Paycheck Contribution</div>
+                        <div class="status-value" id="currentContributionFixed">$0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Age</div>
+                        <div class="status-value" id="currentAge">0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Retirement Age</div>
+                        <div class="status-value" id="retirementAgeStatus">65</div>
                     </div>
                 </div>
             </section>
@@ -52,6 +60,7 @@
                             Fixed Dollar Amount
                         </button>
                     </div>
+                        <div class="help-text">Select whether to contribute a <strong>percentage of each paycheck</strong> or a <strong>fixed dollar amount</strong>.</div>
                 </div>
 
                 <!-- Contribution Amount Input - Percentage Slider -->
@@ -63,6 +72,7 @@
                         <span>50%</span>
                         <span>100%</span>
                     </div>
+                    <div class="help-text">Use the slider to set the percentage of each paycheck you'd like to contribute.</div>
                 </div>
 
                 <!-- Contribution Amount Input - Fixed Dollar Text Field -->
@@ -72,6 +82,7 @@
                         <span>$</span>
                         <input type="number" id="contributionTextInput" min="0" value="300" class="input-field" placeholder="Enter amount">
                     </div>
+                    <div class="help-text">Or enter a fixed dollar amount to contribute per paycheck.</div>
                 </div>
 
                 <!-- Personal Info (manual entries) -->
@@ -123,6 +134,7 @@
 
                 <!-- Save Button -->
                 <button class="btn btn-primary" id="saveButton">Save Contribution Rate</button>
+                <div class="help-text">Click "Save Contribution Rate" to store your preferences.</div>
                 <div id="saveMessage" class="message"></div>
             </section>
 
@@ -184,25 +196,7 @@
                     </div>
                 </section>
             </section>
-
-            <!-- Information Section -->
-            <section class="card info-section">
-                <h2>How It Works</h2>
-                <div class="info-list">
-                    <div class="info-item">
-                        <strong>Choose Your Contribution Type:</strong> Select whether you want to contribute a fixed dollar amount or a percentage of each paycheck.
-                    </div>
-                    <div class="info-item">
-                        <strong>Adjust Your Rate:</strong> Use the slider to set your desired contribution amount.
-                    </div>
-                    <div class="info-item">
-                        <strong>See Your Impact:</strong> Use the calculator to see how your contributions will grow by retirement.
-                    </div>
-                    <div class="info-item">
-                        <strong>Save Your Settings:</strong> Click "Save Contribution Rate" to store your preferences.
-                    </div>
-                </div>
-            </section>
+            
         </main>
     </div>
 
