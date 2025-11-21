@@ -2,6 +2,8 @@
 
 A web application for managing 401(k) contributions with real-time calculations and a Node.js/Express backend.
 
+Demo Video & Explantion: https://www.youtube.com/watch?v=i7T1GLImn5Y
+
 ## Features
 
 - Set contribution type (percentage or fixed dollar amount)
