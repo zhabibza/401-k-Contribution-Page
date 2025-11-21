@@ -55,9 +55,20 @@ app.get('/api/contributions', (req, res) => {
 
 // Update contribution settings
 app.post('/api/contributions', (req, res) => {
-  const { contributionType, contributionAmount } = req.body;
+  const {
+    contributionType,
+    contributionAmount,
+    age,
+    annualSalary,
+    currentBalance,
+    retirementAge,
+    salaryIncrease,
+    annualReturn,
+    inflationRate,
+    paychecksProcessed
+  } = req.body;
 
-  // Validate input
+  // Basic validation for contribution fields
   if (!contributionType || contributionAmount === undefined) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -66,17 +77,26 @@ app.post('/api/contributions', (req, res) => {
     return res.status(400).json({ error: 'Invalid contribution type' });
   }
 
-  // Update contributions
+  // Update provided fields only
   userContributions.contributionType = contributionType;
   userContributions.contributionAmount = contributionAmount;
 
-  // Recalculate YTD contributions based on new rate
+  if (age !== undefined) userContributions.age = age;
+  if (annualSalary !== undefined) userContributions.annualSalary = annualSalary;
+  if (currentBalance !== undefined) userContributions.currentBalance = currentBalance;
+  if (retirementAge !== undefined) userContributions.retirementAge = retirementAge;
+  if (salaryIncrease !== undefined) userContributions.salaryIncrease = salaryIncrease;
+  if (annualReturn !== undefined) userContributions.annualReturn = annualReturn;
+  if (inflationRate !== undefined) userContributions.inflationRate = inflationRate;
+  if (paychecksProcessed !== undefined) userContributions.paychecksProcessed = paychecksProcessed;
+
+  // Recalculate YTD contributions based on new rate and possibly updated salary/paychecks
   const perPaycheckAmount =
     contributionType === 'percentage'
       ? (userContributions.annualSalary / 26) * (contributionAmount / 100)
       : contributionAmount;
 
-  userContributions.ytdContributions = perPaycheckAmount * userContributions.paychecksProcessed;
+  userContributions.ytdContributions = perPaycheckAmount * (userContributions.paychecksProcessed || 0);
 
   saveData();
 
@@ -89,7 +109,17 @@ app.post('/api/contributions', (req, res) => {
 
 // Calculate retirement impact
 app.post('/api/calculate-retirement-impact', (req, res) => {
-  const { futureContributionRate, futureContributionType } = req.body;
+  const {
+    futureContributionRate,
+    futureContributionType,
+    age,
+    annualSalary,
+    currentBalance,
+    retirementAge,
+    salaryIncrease,
+    annualReturn,
+    inflationRate
+  } = req.body;
 
   if (futureContributionRate === undefined) {
     return res.status(400).json({ error: 'futureContributionRate is required' });
@@ -98,34 +128,38 @@ app.post('/api/calculate-retirement-impact', (req, res) => {
   // Use provided type or fallback to current type
   const projectionType = futureContributionType || userContributions.contributionType;
 
-  const currentAge = userContributions.age;
-  const retirementAge = userContributions.retirementAge;
-  const yearsToRetirement = retirementAge - currentAge;
-  const annualReturn = userContributions.annualReturn;
-  const annualSalary = userContributions.annualSalary;
+  // Use overrides from request or fall back to stored values
+  const currentAge = age !== undefined ? age : userContributions.age;
+  const useRetirementAge = retirementAge !== undefined ? retirementAge : userContributions.retirementAge;
+  const yearsToRetirement = useRetirementAge - currentAge;
+  const useAnnualReturn = annualReturn !== undefined ? annualReturn : userContributions.annualReturn;
+  const useAnnualSalary = annualSalary !== undefined ? annualSalary : userContributions.annualSalary;
+  const initialBalance = currentBalance !== undefined ? currentBalance : (userContributions.currentBalance || 0);
 
   // Calculate current trajectory
   const currentPerPaycheckAmount =
     userContributions.contributionType === 'percentage'
-      ? (annualSalary / 26) * (userContributions.contributionAmount / 100)
+      ? (useAnnualSalary / 26) * (userContributions.contributionAmount / 100)
       : userContributions.contributionAmount;
   const currentAnnualContribution = currentPerPaycheckAmount * 26;
   const currentRetirementValue = calculateFutureValue(
     currentAnnualContribution,
-    annualReturn,
-    yearsToRetirement
+    useAnnualReturn,
+    yearsToRetirement,
+    initialBalance
   );
 
   // Calculate future trajectory with new rate (use projection type)
   const futurePerPaycheckAmount =
     projectionType === 'percentage'
-      ? (annualSalary / 26) * (futureContributionRate / 100)
+      ? (useAnnualSalary / 26) * (futureContributionRate / 100)
       : futureContributionRate;
   const futureAnnualContribution = futurePerPaycheckAmount * 26;
   const futureRetirementValue = calculateFutureValue(
     futureAnnualContribution,
-    annualReturn,
-    yearsToRetirement
+    useAnnualReturn,
+    yearsToRetirement,
+    initialBalance
   );
 
   const additionalSavings = futureRetirementValue - currentRetirementValue;
@@ -139,8 +173,8 @@ app.post('/api/calculate-retirement-impact', (req, res) => {
 });
 
 // Helper function to calculate future value with compound interest
-function calculateFutureValue(annualContribution, annualReturn, years) {
-  let value = 0;
+function calculateFutureValue(annualContribution, annualReturn, years, initialBalance = 0) {
+  let value = initialBalance;
   for (let i = 0; i < years; i++) {
     value = (value + annualContribution) * (1 + annualReturn);
   }

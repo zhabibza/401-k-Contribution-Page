@@ -30,6 +30,13 @@ const projectedRetirementValue = document.getElementById('projectedRetirementVal
 const additionalSavings = document.getElementById('additionalSavings');
 const currentRateDisplay = document.getElementById('currentRateDisplay');
 const projectedRateDisplay = document.getElementById('projectedRateDisplay');
+const ageInput = document.getElementById('ageInput');
+const salaryInput = document.getElementById('salaryInput');
+const balanceInput = document.getElementById('balanceInput');
+const retirementAgeInput = document.getElementById('retirementAgeInput');
+const salaryIncreaseInput = document.getElementById('salaryIncreaseInput');
+const expectedReturnInput = document.getElementById('expectedReturnInput');
+const inflationInput = document.getElementById('inflationInput');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
@@ -85,6 +92,15 @@ function updateUI() {
         projectionUnit.textContent = '$';
     }
 
+    // Populate manual fields if present
+    if (ageInput) ageInput.value = currentContributionData.age || '';
+    if (salaryInput) salaryInput.value = currentContributionData.annualSalary || currentContributionData.salary || '';
+    if (balanceInput) balanceInput.value = currentContributionData.currentBalance || 0;
+    if (retirementAgeInput) retirementAgeInput.value = currentContributionData.retirementAge || '';
+    if (salaryIncreaseInput) salaryIncreaseInput.value = currentContributionData.salaryIncrease || '';
+    if (expectedReturnInput) expectedReturnInput.value = (currentContributionData.annualReturn !== undefined) ? (currentContributionData.annualReturn * 100) : '';
+    if (inflationInput) inflationInput.value = currentContributionData.inflationRate || '';
+
     updatePerPaycheckAmount();
 
     // Update current contribution display
@@ -112,6 +128,13 @@ function attachEventListeners() {
     contributionTextInput.addEventListener('input', () => {
         updatePerPaycheckAmount();
     });
+    if (ageInput) ageInput.addEventListener('input', () => {});
+    if (salaryInput) salaryInput.addEventListener('input', () => updatePerPaycheckAmount());
+    if (balanceInput) balanceInput.addEventListener('input', () => {});
+    if (retirementAgeInput) retirementAgeInput.addEventListener('input', () => {});
+    if (salaryIncreaseInput) salaryIncreaseInput.addEventListener('input', () => {});
+    if (expectedReturnInput) expectedReturnInput.addEventListener('input', () => {});
+    if (inflationInput) inflationInput.addEventListener('input', () => {});
     saveButton.addEventListener('click', saveContributionRate);
     calculateButton.addEventListener('click', calculateRetirementImpact);
 }
@@ -159,11 +182,18 @@ function updateSliderDisplay() {
 
 // Update per-paycheck amount display
 function updatePerPaycheckAmount() {
-    const amount = parseFloat(contributionSlider.value);
-    let perPaycheck = 0;
-
+    let amount = 0;
     if (currentContributionData.contributionType === 'percentage') {
-        const perPaycheckSalary = currentContributionData.annualSalary / 26;
+        amount = parseFloat(contributionSlider.value) || 0;
+    } else {
+        amount = parseFloat(contributionTextInput.value) || 0;
+    }
+
+    const salaryVal = parseFloat(salaryInput ? salaryInput.value : currentContributionData.annualSalary) || currentContributionData.annualSalary || currentContributionData.salary || 0;
+
+    let perPaycheck = 0;
+    if (currentContributionData.contributionType === 'percentage') {
+        const perPaycheckSalary = salaryVal / 26;
         perPaycheck = (perPaycheckSalary * amount) / 100;
     } else {
         perPaycheck = amount;
@@ -196,7 +226,14 @@ async function saveContributionRate() {
             },
             body: JSON.stringify({
                 contributionType: type,
-                contributionAmount: amount
+                contributionAmount: amount,
+                age: ageInput ? parseInt(ageInput.value) : undefined,
+                annualSalary: salaryInput ? parseFloat(salaryInput.value) : undefined,
+                currentBalance: balanceInput ? parseFloat(balanceInput.value) : undefined,
+                retirementAge: retirementAgeInput ? parseInt(retirementAgeInput.value) : undefined,
+                salaryIncrease: salaryIncreaseInput ? parseFloat(salaryIncreaseInput.value) : undefined,
+                annualReturn: expectedReturnInput ? (parseFloat(expectedReturnInput.value) / 100) : undefined,
+                inflationRate: inflationInput ? parseFloat(inflationInput.value) : undefined
             })
         });
 
@@ -231,7 +268,14 @@ async function calculateRetirementImpact() {
             },
             body: JSON.stringify({
                 futureContributionRate: projectionAmount,
-                futureContributionType: projectionContributionType
+                futureContributionType: projectionContributionType,
+                age: ageInput ? parseInt(ageInput.value) : undefined,
+                annualSalary: salaryInput ? parseFloat(salaryInput.value) : undefined,
+                currentBalance: balanceInput ? parseFloat(balanceInput.value) : undefined,
+                retirementAge: retirementAgeInput ? parseInt(retirementAgeInput.value) : undefined,
+                salaryIncrease: salaryIncreaseInput ? parseFloat(salaryIncreaseInput.value) : undefined,
+                annualReturn: expectedReturnInput ? (parseFloat(expectedReturnInput.value) / 100) : undefined,
+                inflationRate: inflationInput ? parseFloat(inflationInput.value) : undefined
             })
         });
 
