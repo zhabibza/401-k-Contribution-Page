@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>401(k) Contribution Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>401(k) Contribution Manager</h1>
+            <p class="subtitle">Manage your retirement savings with confidence</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Current Status Section -->
+            <section class="card status-section">
+                <h2>Your Current Contribution Status</h2>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">Year-to-Date Contributions</div>
+                        <div class="status-value" id="ytdContributions">$0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Annual Salary</div>
+                        <div class="status-value" id="annualSalary">$0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Current Contribution</div>
+                        <div class="status-value" id="currentContribution">0%</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Age / Retirement Age</div>
+                        <div class="status-value" id="ageInfo">0 / 65</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Contribution Settings Section -->
+            <section class="card settings-section">
+                <h2>Adjust Your Contribution</h2>
+
+                <!-- Contribution Type Selection -->
+                <div class="form-group">
+                    <label>Contribution Type</label>
+                    <div class="button-group">
+                        <button class="btn btn-secondary" id="typePercentage" data-type="percentage">
+                            Percentage of Paycheck
+                        </button>
+                        <button class="btn btn-secondary" id="typeFixed" data-type="fixed">
+                            Fixed Dollar Amount
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contribution Amount Input - Percentage Slider -->
+                <div class="form-group" id="sliderGroup">
+                    <label for="contributionSlider" id="sliderLabel">Contribution Rate: <span id="sliderValue">6</span>%</label>
+                    <input type="range" id="contributionSlider" min="0" max="100" value="6" class="slider">
+                    <div class="slider-labels">
+                        <span>0%</span>
+                        <span>50%</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+
+                <!-- Contribution Amount Input - Fixed Dollar Text Field -->
+                <div class="form-group hidden" id="textFieldGroup">
+                    <label for="contributionTextInput">Fixed Contribution Amount</label>
+                    <div class="input-with-label">
+                        <span>$</span>
+                        <input type="number" id="contributionTextInput" min="0" value="300" class="input-field" placeholder="Enter amount">
+                    </div>
+                </div>
+
+                <!-- Amount Per Paycheck Display -->
+                <div class="info-box">
+                    <strong>Per Paycheck Contribution:</strong> <span id="perPaycheckAmount">$0</span>
+                </div>
+
+                <!-- Save Button -->
+                <button class="btn btn-primary" id="saveButton">Save Contribution Rate</button>
+                <div id="saveMessage" class="message"></div>
+            </section>
+
+            <!-- Retirement Impact Section -->
+            <section class="card retirement-section">
+                <h2>Retirement Impact Calculator</h2>
+                <p class="section-description">See how adjusting your contribution rate impacts your retirement savings</p>
+
+                <div class="form-group">
+                    <label>Projection Type</label>
+                    <div class="button-group">
+                        <button class="btn btn-secondary active" id="projectionTypePercentage" data-type="percentage">
+                            Percentage
+                        </button>
+                        <button class="btn btn-secondary" id="projectionTypeFixed" data-type="fixed">
+                            Fixed Dollar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="projectionContribution">Projected Contribution</label>
+                    <div class="input-with-label">
+                        <span id="projectionPrefix">%</span>
+                        <input type="number" id="projectionContribution" min="0" value="6" class="input-field">
+                        <span id="projectionUnit">%</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary" id="calculateButton">Calculate Impact</button>
+
+                <div id="retirementResults" class="retirement-results hidden">
+                    <div class="result-item">
+                        <div class="result-label">Current Retirement Value at 65</div>
+                        <div class="result-value" id="currentRetirementValue">$0</div>
+                        <div class="result-description">Based on your current <span id="currentRateDisplay">6%</span> contribution</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">Projected Retirement Value at 65</div>
+                        <div class="result-value" id="projectedRetirementValue">$0</div>
+                        <div class="result-description">Based on <span id="projectedRateDisplay">6%</span> contribution</div>
+                    </div>
+                    <div class="result-item highlight">
+                        <div class="result-label">Additional Savings</div>
+                        <div class="result-value" id="additionalSavings">$0</div>
+                        <div class="result-description">Extra money at retirement</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Information Section -->
+            <section class="card info-section">
+                <h2>How It Works</h2>
+                <div class="info-list">
+                    <div class="info-item">
+                        <strong>Choose Your Contribution Type:</strong> Select whether you want to contribute a fixed dollar amount or a percentage of each paycheck.
+                    </div>
+                    <div class="info-item">
+                        <strong>Adjust Your Rate:</strong> Use the slider to set your desired contribution amount.
+                    </div>
+                    <div class="info-item">
+                        <strong>See Your Impact:</strong> Use the calculator to see how your contributions will grow by retirement.
+                    </div>
+                    <div class="info-item">
+                        <strong>Save Your Settings:</strong> Click "Save Contribution Rate" to store your preferences.
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

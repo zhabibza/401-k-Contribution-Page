@@ -1,0 +1,12 @@
+{
+  "userId": "user123",
+  "contributionType": "percentage",
+  "contributionAmount": 6,
+  "ytdContributions": 3692.3076923076924,
+  "salary": 80000,
+  "annualSalary": 80000,
+  "paychecksProcessed": 20,
+  "age": 30,
+  "retirementAge": 65,
+  "annualReturn": 0.07
+}
