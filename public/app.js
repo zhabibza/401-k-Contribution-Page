@@ -42,6 +42,9 @@ const inflationInput = document.getElementById('inflationInput');
 document.addEventListener('DOMContentLoaded', () => {
     loadContributionData();
     attachEventListeners();
+    // Hide yearly projections area on load
+    const projectionChartWrap = document.getElementById('projectionChartWrap');
+    if (projectionChartWrap) projectionChartWrap.classList.add('hidden');
 });
 
 // Fetch and display current contribution data
@@ -305,6 +308,225 @@ function displayRetirementImpact(data, projectionAmount, projectionType) {
     projectedRateDisplay.textContent = `${projectionAmount}${projectionUnit}`;
 
     retirementResults.classList.remove('hidden');
+
+    // Show yearly projections area
+    const projectionChartWrap = document.getElementById('projectionChartWrap');
+    if (projectionChartWrap) projectionChartWrap.classList.remove('hidden');
+
+    // Build yearly projections and render chart
+    const initialBalance = balanceInput ? parseFloat(balanceInput.value) || 0 : (currentContributionData.currentBalance || 0);
+    const salaryVal = salaryInput ? parseFloat(salaryInput.value) || currentContributionData.annualSalary : currentContributionData.annualSalary;
+    const useSalaryIncrease = salaryIncreaseInput ? (parseFloat(salaryIncreaseInput.value) || 0) / 100 : (currentContributionData.salaryIncrease ? currentContributionData.salaryIncrease / 100 : 0);
+    const useReturn = expectedReturnInput ? (parseFloat(expectedReturnInput.value) || (currentContributionData.annualReturn * 100)) / 100 : (currentContributionData.annualReturn || 0.07);
+    const useRetirementAge = retirementAgeInput ? parseInt(retirementAgeInput.value) || currentContributionData.retirementAge : currentContributionData.retirementAge;
+    const useAge = ageInput ? parseInt(ageInput.value) || currentContributionData.age : currentContributionData.age;
+    const years = Math.max(1, useRetirementAge - useAge);
+
+    const currentProj = computeYearlyProjection(
+        initialBalance,
+        salaryVal,
+        currentContributionData.contributionType,
+        currentContributionData.contributionAmount,
+        useReturn,
+        years,
+        useSalaryIncrease
+    );
+
+    const futureProj = computeYearlyProjection(
+        initialBalance,
+        salaryVal,
+        projectionType,
+        projectionAmount,
+        useReturn,
+        years,
+        useSalaryIncrease
+    );
+
+    renderProjectionChart('projectionChart', currentProj, futureProj);
+}
+
+// Compute yearly projection breakdown
+function computeYearlyProjection(initialBalance, annualSalary, contributionType, contributionAmount, annualReturn, years, salaryIncrease) {
+    const rows = [];
+    let balance = initialBalance || 0;
+    let salary = annualSalary || 0;
+
+    // Match backend: use fixed annual contribution for all years
+    let annualContribution = 0;
+    if (contributionType === 'percentage') {
+        annualContribution = (annualSalary) * (contributionAmount / 100);
+    } else {
+        annualContribution = (parseFloat(contributionAmount) || 0) * 26;
+    }
+    for (let y = 1; y <= years; y++) {
+        const preReturn = balance + annualContribution;
+        const returnsThisYear = preReturn * (annualReturn || 0);
+        const endValue = preReturn + returnsThisYear;
+
+        rows.push({
+            year: y,
+            salary: annualSalary,
+            startValue: balance,
+            contribution: annualContribution,
+            returns: returnsThisYear,
+            endValue: endValue,
+            cumulativeContribution: (rows.length > 0 ? rows[rows.length - 1].cumulativeContribution : 0) + annualContribution,
+            cumulativeReturns: (rows.length > 0 ? rows[rows.length - 1].cumulativeReturns : 0) + returnsThisYear
+        });
+
+        // prepare next year
+        balance = endValue;
+        // salary stays constant to match backend
+    }
+
+    return rows;
+}
+
+// Render SVG stacked bar chart comparing two projections
+function renderProjectionChart(svgId, currentRows, futureRows) {
+    const svg = document.getElementById(svgId);
+    if (!svg) return;
+
+    // Clear
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const wrap = document.getElementById('projectionChartWrap');
+    const tooltip = document.getElementById('chartTooltip');
+
+    const width = svg.clientWidth || svg.getBoundingClientRect().width || 800;
+    const height = 320;
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+    const years = currentRows.length;
+    const padding = 40;
+    const chartW = width - padding * 2;
+    const chartH = height - padding * 2;
+
+    // find max cumulative total (contributions-to-date + returns-to-date) so bars compare totals
+    const maxTotal = Math.max(
+        ...currentRows.map(r => (r.cumulativeContribution || 0) + (r.cumulativeReturns || 0)),
+        ...futureRows.map(r => (r.cumulativeContribution || 0) + (r.cumulativeReturns || 0))
+    ) || 1;
+    // add small headroom so the largest bar isn't flush with the top
+    const yMax = maxTotal * 1.08;
+
+    const groupWidth = chartW / years;
+    const barSpacing = Math.min(12, groupWidth * 0.15);
+    const singleBarWidth = Math.max(6, (groupWidth - barSpacing) / 2 - 6);
+
+    // draw baseline and year labels
+    for (let i = 0; i < years; i++) {
+        const gX = padding + i * groupWidth;
+
+        // For each year, center the group, then offset current left and projected right
+        const groupCenter = gX + groupWidth / 2;
+        const cx = groupCenter - singleBarWidth - 2;
+        const fx = groupCenter + 2;
+
+        const cur = currentRows[i];
+        const fut = futureRows[i];
+        const startAge = (ageInput && parseInt(ageInput.value)) || (currentContributionData && currentContributionData.age) || 0;
+        const labelAge = startAge + (cur.year - 1);
+
+        // map cumulative contribution and cumulative returns (to-date) to pixel heights using yMax
+        const curContributionH = ((cur.cumulativeContribution || 0) / yMax) * chartH;
+        const curReturnH = ((cur.cumulativeReturns || 0) / yMax) * chartH;
+        const futContributionH = ((fut.cumulativeContribution || 0) / yMax) * chartH;
+        const futReturnH = ((fut.cumulativeReturns || 0) / yMax) * chartH;
+
+        // helper to create rect
+        function rect(x, y, w, h, fill, data) {
+            const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            r.setAttribute('x', x);
+            r.setAttribute('y', y);
+            r.setAttribute('width', w);
+            r.setAttribute('height', h);
+            r.setAttribute('fill', fill);
+            r.style.transition = 'opacity 0.15s';
+            if (data) {
+                r.dataset.info = JSON.stringify(data);
+                r.addEventListener('mousemove', onRectHover);
+                r.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+            }
+            svg.appendChild(r);
+            return r;
+        }
+
+        // current bars: draw contribution at bottom, returns above it
+        const curContribY = padding + chartH - curContributionH;
+        const curReturnY = curContribY - curReturnH;
+        rect(cx, curReturnY, singleBarWidth, Math.max(0.5, curReturnH), '#85b9ff', { type: 'current', year: cur.year, age: labelAge, total: cur.endValue, cumulativeContribution: cur.cumulativeContribution, cumulativeReturns: cur.cumulativeReturns });
+        rect(cx, curContribY, singleBarWidth, Math.max(0.5, curContributionH), '#4f8ef7', { type: 'current', year: cur.year, age: labelAge, total: cur.endValue, cumulativeContribution: cur.cumulativeContribution, cumulativeReturns: cur.cumulativeReturns });
+
+        // projected bars: draw contribution at bottom, returns above it
+        const futContribY = padding + chartH - futContributionH;
+        const futReturnY = futContribY - futReturnH;
+        rect(fx, futReturnY, singleBarWidth, Math.max(0.5, futReturnH), '#8fe3a1', { type: 'future', year: fut.year, age: labelAge, total: fut.endValue, cumulativeContribution: fut.cumulativeContribution, cumulativeReturns: fut.cumulativeReturns });
+        rect(fx, futContribY, singleBarWidth, Math.max(0.5, futContributionH), '#28a745', { type: 'future', year: fut.year, age: labelAge, total: fut.endValue, cumulativeContribution: fut.cumulativeContribution, cumulativeReturns: fut.cumulativeReturns });
+
+        // year label -> use actual ages instead of +1, +2...
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.setAttribute('x', gX + groupWidth / 2);
+        txt.setAttribute('y', padding + chartH + 16);
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('fill', '#666');
+        txt.setAttribute('font-size', '10');
+        txt.textContent = `${labelAge}`;
+        svg.appendChild(txt);
+    }
+
+    // legend
+    let legend = document.getElementById('chartLegend');
+    // Get contribution rate labels
+    const currentType = currentContributionData?.contributionType;
+    const currentAmount = currentContributionData?.contributionAmount;
+    const currentLabel = currentType === 'percentage' ? `${currentAmount}%` : `$${currentAmount}`;
+
+    // Try to get projected rate from UI
+    let projectedType = projectionContributionType;
+    let projectedAmount = document.getElementById('projectionContribution')?.value;
+    let projectedLabel = '';
+    if (projectedType === 'percentage') {
+        projectedLabel = `${projectedAmount}%`;
+    } else {
+        projectedLabel = `$${projectedAmount}`;
+    }
+
+    if (!legend) {
+        legend = document.createElement('div');
+        legend.id = 'chartLegend';
+        legend.className = 'chart-legend';
+        legend.innerHTML = `
+            <div class="legend-item"><div class="legend-color" style="background:#4f8ef7"></div><div>Current Contributions To Date (${currentLabel})</div></div>
+            <div class="legend-item"><div class="legend-color" style="background:#85b9ff"></div><div>Current Returns To Date (${currentLabel})</div></div>
+            <div class="legend-item"><div class="legend-color" style="background:#28a745"></div><div>Projected Contributions To Date (${projectedLabel})</div></div>
+            <div class="legend-item"><div class="legend-color" style="background:#8fe3a1"></div><div>Projected Returns To Date (${projectedLabel})</div></div>
+        `;
+        wrap.appendChild(legend);
+    } else {
+        legend.innerHTML = `
+            <div class="legend-item"><div class="legend-color" style="background:#4f8ef7"></div><div>Current Contributions To Date (${currentLabel})</div></div>
+            <div class="legend-item"><div class="legend-color" style="background:#85b9ff"></div><div>Current Returns To Date (${currentLabel})</div></div>
+            <div class="legend-item"><div class="legend-color" style="background:#28a745"></div><div>Projected Contributions To Date (${projectedLabel})</div></div>
+            <div class="legend-item"><div class="legend-color" style="background:#8fe3a1"></div><div>Projected Returns To Date (${projectedLabel})</div></div>
+        `;
+    }
+
+    function onRectHover(e) {
+        const d = JSON.parse(e.currentTarget.dataset.info || '{}');
+        if (!d) return;
+        tooltip.style.display = 'block';
+        const ageLabel = d.age !== undefined ? `Age ${d.age}` : `Year ${d.year}`;
+        const contrib = (d.cumulativeContribution !== undefined) ? d.cumulativeContribution : d.contribution;
+        const ret = (d.cumulativeReturns !== undefined) ? d.cumulativeReturns : d.returns;
+        tooltip.innerHTML = `<strong>${ageLabel}</strong><br>Total: ${formatCurrency(d.total)}<br>Contributions to date: ${formatCurrency(contrib)}<br>Returns to date: ${formatCurrency(ret)}`;
+        // position
+        const rect = wrap.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
+    }
 }
 
 // Show message

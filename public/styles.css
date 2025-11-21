@@ -307,6 +307,42 @@ details summary {
     font-weight: 600;
 }
 
+/* Chart styles */
+#projectionChartWrap {
+    position: relative;
+    width: 100%;
+    margin-top: 12px;
+}
+
+#projectionChart {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+    border-radius: 8px;
+    overflow: visible;
+}
+
+.chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(0,0,0,0.85);
+    color: white;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+    transform: translate(-50%, -120%);
+    white-space: nowrap;
+    z-index: 30;
+}
+
+.chart-legend {
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-top:8px;
+}
+.legend-item{display:flex;gap:6px;align-items:center}
+.legend-color{width:14px;height:14px;border-radius:3px}
+
 /* Message */
 .message {
     margin-top: 15px;
