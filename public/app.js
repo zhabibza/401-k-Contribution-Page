@@ -2,6 +2,10 @@
 let currentContributionData = null;
 let projectionContributionType = 'percentage'; // Track projection type independently
 
+// Contribution limits
+const ANNUAL_CONTRIBUTION_LIMIT = 24500;
+const PER_PAYCHECK_LIMIT = ANNUAL_CONTRIBUTION_LIMIT / 26; // 942.31
+
 // DOM Elements
 const typePercentageBtn = document.getElementById('typePercentage');
 const typeFixedBtn = document.getElementById('typeFixed');
@@ -89,12 +93,17 @@ function updateUI() {
 
     // Update slider
     if (currentContributionData.contributionType === 'percentage') {
-        contributionSlider.value = currentContributionData.contributionAmount;
+        // Calculate max percentage based on salary
+        const salary = currentContributionData.annualSalary || 0;
+        const maxPercentage = salary > 0 ? Math.min(100, (ANNUAL_CONTRIBUTION_LIMIT / salary) * 100) : 100;
+        contributionSlider.max = maxPercentage.toFixed(2);
+        contributionSlider.value = Math.min(currentContributionData.contributionAmount, maxPercentage);
         updateSliderDisplay();
         sliderLabel.innerHTML = `Contribution Rate: <span id="sliderValue">${currentContributionData.contributionAmount}</span>%`;
         projectionUnit.textContent = '%';
     } else {
         contributionTextInput.value = currentContributionData.contributionAmount;
+        contributionTextInput.max = PER_PAYCHECK_LIMIT.toFixed(2);
         projectionUnit.textContent = '$';
     }
 
@@ -160,7 +169,20 @@ function attachEventListeners() {
         updatePerPaycheckAmount();
     });
     if (ageInput) ageInput.addEventListener('input', () => {});
-    if (salaryInput) salaryInput.addEventListener('input', () => updatePerPaycheckAmount());
+    if (salaryInput) salaryInput.addEventListener('input', () => {
+        // Recalculate slider max when salary changes
+        if (currentContributionData.contributionType === 'percentage') {
+            const salary = parseFloat(salaryInput.value) || 0;
+            const maxPercentage = salary > 0 ? Math.min(100, (ANNUAL_CONTRIBUTION_LIMIT / salary) * 100) : 100;
+            contributionSlider.max = maxPercentage.toFixed(2);
+            // Adjust current value if it exceeds new max
+            if (parseFloat(contributionSlider.value) > maxPercentage) {
+                contributionSlider.value = maxPercentage.toFixed(2);
+                updateSliderDisplay();
+            }
+        }
+        updatePerPaycheckAmount();
+    });
     if (balanceInput) balanceInput.addEventListener('input', () => {});
     if (retirementAgeInput) retirementAgeInput.addEventListener('input', () => {});
     if (salaryIncreaseInput) salaryIncreaseInput.addEventListener('input', () => {});
@@ -187,10 +209,15 @@ function selectContributionType(type) {
         // Convert from percentage to fixed dollar per paycheck
         // Per-paycheck contribution = (per-paycheck salary) * (percentage / 100)
         newAmount = Math.round((perPaycheckSalary * currentAmount / 100) * 100) / 100;
+        // Enforce per-paycheck limit
+        newAmount = Math.min(newAmount, PER_PAYCHECK_LIMIT);
     } else if (currentType === 'fixed' && type === 'percentage') {
         // Convert from fixed dollar per paycheck to percentage
         // Percentage = (fixed per-paycheck / per-paycheck salary) * 100
         newAmount = perPaycheckSalary > 0 ? Math.round((currentAmount / perPaycheckSalary * 100) * 100) / 100 : 0;
+        // Enforce max percentage based on annual limit
+        const maxPercentage = salary > 0 ? Math.min(100, (ANNUAL_CONTRIBUTION_LIMIT / salary) * 100) : 100;
+        newAmount = Math.min(newAmount, maxPercentage);
     }
     
     currentContributionData.contributionType = type;
@@ -212,9 +239,14 @@ function selectProjectionType(type) {
     if (currentType === 'percentage' && type === 'fixed') {
         // Convert from percentage to fixed dollar per paycheck
         newAmount = Math.round((perPaycheckSalary * currentAmount / 100) * 100) / 100;
+        // Enforce per-paycheck limit
+        newAmount = Math.min(newAmount, PER_PAYCHECK_LIMIT);
     } else if (currentType === 'fixed' && type === 'percentage') {
         // Convert from fixed dollar per paycheck to percentage
         newAmount = perPaycheckSalary > 0 ? Math.round((currentAmount / perPaycheckSalary * 100) * 100) / 100 : 0;
+        // Enforce max percentage based on annual limit
+        const maxPercentage = salary > 0 ? Math.min(100, (ANNUAL_CONTRIBUTION_LIMIT / salary) * 100) : 100;
+        newAmount = Math.min(newAmount, maxPercentage);
     }
     
     projectionContributionType = type;
@@ -226,13 +258,15 @@ function selectProjectionType(type) {
         projectionTypeFixed.classList.remove('active');
         projectionUnit.textContent = '%';
         projectionPrefix.textContent = '%';
-        projectionContribution.max = '100';
+        // Set max based on salary and annual limit
+        const maxPercentage = salary > 0 ? Math.min(100, (ANNUAL_CONTRIBUTION_LIMIT / salary) * 100) : 100;
+        projectionContribution.max = maxPercentage.toFixed(2);
     } else {
         projectionTypeFixed.classList.add('active');
         projectionTypePercentage.classList.remove('active');
         projectionUnit.textContent = '$';
         projectionPrefix.textContent = '$';
-        projectionContribution.max = '';
+        projectionContribution.max = PER_PAYCHECK_LIMIT.toFixed(2);
     }
 }
 
@@ -288,6 +322,22 @@ async function saveContributionRate() {
         }
 
         const type = currentContributionData.contributionType;
+        
+        // Validate contribution limits
+        if (type === 'fixed' && amount > PER_PAYCHECK_LIMIT) {
+            showMessage(`Per-paycheck contribution cannot exceed $${PER_PAYCHECK_LIMIT.toFixed(2)} (annual limit of $${ANNUAL_CONTRIBUTION_LIMIT})`, 'error');
+            return;
+        }
+        
+        if (type === 'percentage') {
+            const salary = salaryInput ? parseFloat(salaryInput.value) : currentContributionData.annualSalary;
+            const annualContribution = (salary * amount) / 100;
+            if (annualContribution > ANNUAL_CONTRIBUTION_LIMIT) {
+                const maxPercentage = (ANNUAL_CONTRIBUTION_LIMIT / salary) * 100;
+                showMessage(`Contribution percentage cannot exceed ${maxPercentage.toFixed(2)}% (annual limit of $${ANNUAL_CONTRIBUTION_LIMIT})`, 'error');
+                return;
+            }
+        }
 
         const response = await fetch('/api/contributions', {
             method: 'POST',
@@ -327,8 +377,31 @@ async function calculateRetirementImpact() {
         const projectionAmount = parseFloat(projectionContribution.value);
 
         if (isNaN(projectionAmount) || projectionAmount < 0) {
-            showMessage('Please enter a valid projection amount', 'error');
+            showMessage('Please enter a valid projection amount', 'error', true);
             return;
+        }
+        
+        // Validate projection contribution limits
+        if (projectionContributionType === 'fixed' && projectionAmount > PER_PAYCHECK_LIMIT) {
+            showMessage(`Per-paycheck contribution cannot exceed $${PER_PAYCHECK_LIMIT.toFixed(2)} (annual limit of $${ANNUAL_CONTRIBUTION_LIMIT})`, 'error', true);
+            return;
+        }
+        
+        if (projectionContributionType === 'percentage') {
+            const salary = salaryInput ? parseFloat(salaryInput.value) : currentContributionData.annualSalary;
+            const annualContribution = (salary * projectionAmount) / 100;
+            if (annualContribution > ANNUAL_CONTRIBUTION_LIMIT) {
+                const maxPercentage = (ANNUAL_CONTRIBUTION_LIMIT / salary) * 100;
+                showMessage(`Projection percentage cannot exceed ${maxPercentage.toFixed(2)}% (annual limit of $${ANNUAL_CONTRIBUTION_LIMIT})`, 'error', true);
+                return;
+            }
+        }
+        
+        // Clear any previous error messages in calculator section
+        const calculatorMessage = document.getElementById('calculatorMessage');
+        if (calculatorMessage) {
+            calculatorMessage.textContent = '';
+            calculatorMessage.className = 'message';
         }
 
         const response = await fetch('/api/calculate-retirement-impact', {
@@ -357,7 +430,7 @@ async function calculateRetirementImpact() {
         displayRetirementImpact(result, projectionAmount, projectionContributionType);
     } catch (error) {
         console.error('Error calculating:', error);
-        showMessage('Error calculating retirement impact. Please try again.', 'error');
+        showMessage('Error calculating retirement impact. Please try again.', 'error', true);
     }
 }
 
@@ -605,15 +678,26 @@ function renderProjectionChart(svgId, currentRows, futureRows) {
 }
 
 // Show message
-function showMessage(text, type) {
+function showMessage(text, type, showInCalculator = false) {
     saveMessage.textContent = text;
     saveMessage.className = `message ${type}`;
+    
+    // Also show in calculator section if requested
+    const calculatorMessage = document.getElementById('calculatorMessage');
+    if (showInCalculator && calculatorMessage) {
+        calculatorMessage.textContent = text;
+        calculatorMessage.className = `message ${type}`;
+    }
 
     // Auto-hide success messages after 4 seconds
     if (type === 'success') {
         setTimeout(() => {
             saveMessage.textContent = '';
             saveMessage.className = 'message';
+            if (calculatorMessage) {
+                calculatorMessage.textContent = '';
+                calculatorMessage.className = 'message';
+            }
         }, 4000);
     }
 }
